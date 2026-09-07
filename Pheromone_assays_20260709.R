@@ -1,5 +1,5 @@
 ##--##--##--##--##--##--##--##--##--##--##--##--##--##--##--##--#
-#Title: "Belowground ants follow pheromones more quickly under dark conditions, but pheromones do not affect decision accuracy nor aggression"
+#Title: "Below-ground ants follow pheromones more quickly under dark conditions, but pheromones do not affect decision accuracy nor aggression"
 
 # Authors
 #Patrick Krapf, Michael Mitschke, Anna Lenninger, Nico Völlenklee, Tomer J. Czaczkes, Birgit C. Schlick-Steiner, Florian M. Steiner
@@ -42,7 +42,8 @@ packages_needed <- c("ggplot2",
                      "stringr",
                      "ggsn",
                      "tidyr",
-                     "grid" 
+                     "grid",
+                     "scales"
 )
 
 pk_to_install <- packages_needed [!( packages_needed %in% rownames(installed.packages())  )]
@@ -91,11 +92,10 @@ if(length(pk_to_install)>0 ){
 ###---###---###---###---###---###---###
 library(readxl); library("rnaturalearth"); library("rnaturalearthdata"); library("ggspatial"); library("sf"); library("ggmap"); library(ggplot2); library("viridis"); library("stringr"); library("ggsn")
 
-# setwd("C:/Users/krapf/OneDrive/Desktop/PheromoneAssays/")
-# dataset_map <- readxl::read_xlsx("Ameisenkolonien.xlsx", sheet="R_Map")
 setwd("C:/Users/krapf/OneDrive/Desktop/PheromoneAssays/auswertung/")
 dataset_map <- readxl::read_xlsx("Dataset.xlsx", sheet="R_Map")
 head(dataset_map)
+
 
 
 ###---###---###---###---###---###---###
@@ -109,7 +109,7 @@ map2 <- get_stadiamap(area, zoom = 5, maptype = "stamen_toner_lite", color="colo
 ###---###---###---###---###---###---###
 ### Save PDF ####
 ###---###---###---###---###---###---###
-pdf("Pheromones_Map_20260112.pdf")
+pdf("Pheromones_Map.pdf")
 #Europe_PW_20240610 former map
 ggmap(map2) +
   ylab("Latitude")+
@@ -137,7 +137,7 @@ map3 <- get_stadiamap(area, zoom = 9, maptype = "stamen_terrain_background", col
 ###---###---###---###---###---###---###
 ### Save PDF ####
 ###---###---###---###---###---###---###
-pdf("Austria_Italy_PW_20260112.pdf")
+pdf("Austria_Italy_PW.pdf")
 ggmap(map3)+
   ylab("Latitude")+
   xlab("Longitude")+
@@ -162,19 +162,17 @@ dev.off()
 
 
 ##--##--##--##--##--##--##--##--##--##--##--##--##--##--##--##--##--##--##
-#   Q1. ABOVE- VS BELOWGROUND ASSAYS      ####
+#   Q1. ABOVE- VS BELOW-GROUND ASSAYS      ####
 ##--##--##--##--##--##--##--##--##--##--##--##--##--##--##--##--##--##--##
-# Important note: The aboveground assays were termed "bright" and the belowground assays "dark" in the section Q1
+# Important note: The above-ground assays were termed "bright" and the below-ground assays "dark" in the section Q1
 
 ##--##--##--##--##--##--##--##--##--##--##
 ##   Load packages, set wd and load data     ####
 ##--##--##--##--##--##--##--##--##--##--##
 library(dplyr)
 
-# setwd("C:/Users/krapf/OneDrive/Desktop/PheromoneAssays/auswertung/Files_digitised")
-# phero <- readxl::read_xlsx("Bright_dark_assay_.xlsx", sheet=1)
 setwd("C:/Users/krapf/OneDrive/Desktop/PheromoneAssays/auswertung/")
-phero <- readxl::read_xlsx("Dataset", sheet="Assay_AboveBelowground")
+phero <- readxl::read_xlsx("Dataset.xlsx", sheet="Assay_AboveBelowground")
 head(phero)
 
 # Check how often decisions where made on the left and right side and no decision
@@ -287,55 +285,72 @@ M
 ##--##--##--##--##
 ### Above- vs below-ground Binomial tests ###
 ##--##--##--##--##
-#Aboveground
+#Above-ground
 table(phero$bright_dark, phero$correct)
 binom.test(x=73, n=80, p=.5, alternative = "two.sided") ##MS
 
-#Belowground
+#Below-ground
 binom.test(x=71, n=80, p=.5, alternative = "two.sided") ##MS
 
 
 
 ##--##--##--##--##
-### Plot decision frequency #####
+### Plot decision proportions #####
 ##--##--##--##--##
-library(ggpubr)
+library(ggpubr); library(scales)
 
-#To plot the data, we exclude missing values, which were not used in the analysis anyway
-phero_ <- phero %>%
-  filter(correct != "") %>%
-  as_tibble()
+# Compute counts and proportions
+phero_prop <- phero_ %>%
+  count(bright_dark, correct, name = "n") %>%    # n = original counts
+  group_by(bright_dark) %>%
+  mutate(prop = n / sum(n))                      # proportion within each bright_dark
 
-#Create plot
-BrightDark_Following <- ggplot(phero_, aes(x=bright_dark , fill=correct))+ #y=decision
-  geom_bar(position="dodge", color="black")+
-  ylab("Frequency of decisions")+
-  xlab("")+
-  coord_cartesian(ylim = c(0,80)) +
-  scale_y_continuous(breaks=seq(0,85,10)) +
-  geom_text(
-    stat = "count",
-    aes(label = ..count..),
-    position = position_dodge(width = 0.9),
-    vjust = -0.5
+# Plot data
+BrightDark_Prop_Dodge <- ggplot(
+  phero_prop,
+  aes(x = bright_dark, y = prop, fill = correct)
+) +
+  geom_col(position = "dodge", color = "black") +
+  ylab("Proportion of decisions") +
+  xlab("") +
+  scale_y_continuous(
+    labels = percent_format(),
+    limits = c(0, 1.1)   # a bit >1 to leave room for text above bars
   ) +
-  scale_x_discrete(breaks=c("B", "D"),
-                   labels=c("Aboveground", "Belowground")) +
-  scale_fill_manual(values=c("#f4a162","#42923f"),
-                    name ="Decision",
-                    breaks=c("n", "y"),
-                    labels = c("Not following", "Following")) +
+  geom_text(
+    aes(
+      label = paste0(
+        percent(prop, accuracy = 1),  # e.g. "9%"
+        " (", n, ")"                  # e.g. "(12)"
+      )
+    ),
+    position = position_dodge(width = 0.9),
+    vjust = -0.5,
+    size = 3.5
+  ) +
+  scale_x_discrete(
+    breaks = c("B", "D"),
+    labels = c("Above-ground", "Below-ground")
+  ) +
+  scale_fill_manual(
+    values = c("#f4a162", "#42923f"),
+    name   = "Decision",
+    breaks = c("n", "y"),
+    labels = c("Not following", "Following")
+  ) +
   theme_bw() +
-  theme(plot.title = element_text(size=25),
-        axis.title.x = element_text(size=17),
-        axis.text.x  = element_text(size=13, color="black"),
-        axis.title.y = element_text(size=17),
-        axis.text.y  = element_text(size=13, color="black"),
-        panel.border = element_rect(colour = "black", fill=NA, size=1),
-        legend.position="none",
-        panel.grid.minor.x = element_blank())
-BrightDark_Following
+  theme(
+    plot.title       = element_text(size = 25),
+    axis.title.x     = element_text(size = 17),
+    axis.text.x      = element_text(size = 13, color = "black"),
+    axis.title.y     = element_text(size = 17),
+    axis.text.y      = element_text(size = 13, color = "black"),
+    panel.border     = element_rect(colour = "black", fill = NA, size = 1),
+    legend.position  = "none",
+    panel.grid.minor.x = element_blank()
+  )
 
+BrightDark_Prop_Dodge
 
 
 
@@ -377,13 +392,14 @@ wilcox.test(bright_$dec3, dark_$dec3)  ##MS
 
 BrightDark_DecTimes <- ggplot(phero_, aes(x=bright_dark , y=dec3, fill=bright_dark))+
   geom_boxplot()+
+  geom_jitter(width=0.2, alpha=0.2) +
   ylab("Seconds until ants reached decision")+
   xlab("")+
   scale_x_discrete(breaks=c("B", "D"),
-                   labels=c("Aboveground", "Aboveground")) +
+                   labels=c("Above-ground", "Below-ground")) +
   scale_fill_manual(values=c("#ffff9f","#617090"),  #    #ffffff  #707070
                     name ="Assay", 
-                    labels = c("Aboveground", "Aboveground")) +
+                    labels = c("Above-ground", "Below-ground")) +
   geom_signif(
     comparisons = list(c("B", "D")),
     map_signif_level = TRUE) + 
@@ -405,7 +421,7 @@ BrightDark_DecTimes
 ##--##--##--##--##
 
 ##--##--##--##--##
-### Aboveground assays ####
+### Above-ground assays ####
 ##--##--##--##--##
 # Basically, do we see speed-accuracy trade-off?
 # Split data into bright and dark and following (correct) and not following (not correct) using the data set with excluded values (phero_)
@@ -420,7 +436,7 @@ bright_Wrong <- phero_ %>%
 ##--##--##--##--##
 #### Are decision times normally distributed? ####
 ##--##--##--##--##
-#For aboveground ...
+#For above-ground ...
 #...following
 shapiro.test(bright_Corr$dec3) 
 #not follogin
@@ -439,7 +455,7 @@ wilcox.test(bright_Wrong$dec3, bright_Corr$dec3)
 
 
 ##--##--##--##--##
-### Belowground assays ####
+### Below-ground assays ####
 ##--##--##--##--##
 
 # Split data into bright and dark and following (correct) and not following (not correct) using the data set with excluded values (phero_)
@@ -475,8 +491,9 @@ wilcox.test(dark_Wrong$dec3, dark_Corr$dec3)
 BrightDark_SpeedAccuracy <- 
 ggplot(phero_, aes(x=correct , y=dec3, fill=correct))+
   geom_boxplot()+
-  facet_grid(~bright_dark, labeller = as_labeller(c("B"='Aboveground assays',
-                                              "D"='Beloweground assays'))) +
+  geom_jitter(width=0.2, alpha=0.2) +
+  facet_grid(~bright_dark, labeller = as_labeller(c("B"='Above-ground assays',
+                                              "D"='Below-ground assays'))) +
   ylab("Seconds until ants crossed decision line")+
   xlab("")+
   scale_x_discrete(breaks=c("n", "y"),
@@ -493,17 +510,18 @@ ggplot(phero_, aes(x=correct , y=dec3, fill=correct))+
         axis.title.y = element_text(size=17),
         axis.text.y  = element_text(size=13, color="black"),
         panel.border = element_rect(colour = "black", fill=NA, size=1),
+        strip.text.x = element_blank(),
         panel.grid.minor.x = element_blank())
 BrightDark_SpeedAccuracy
 
 
 ###---###---###---###---###---###---###
-## Figure 2 - Above- vs belowground assays ####
+## Figure 2 - Above- vs below-ground assays ####
 ###---###---###---###---###---###---###
 library(ggpubr)
 # Plot Brigt and Dark assays in compound figure
-pdf("Fig2_BrightDark_20260112.pdf", width = 12, height = 5.84)  # half of 11.69 height
-ggarrange(BrightDark_Following,
+pdf("Fig2_BrightDark.pdf", width = 12, height = 5.84)  # half of 11.69 height
+ggarrange(BrightDark_Prop_Dodge,
           BrightDark_DecTimes,
           BrightDark_SpeedAccuracy, 
           labels = c("A)", "B)", "C)"),  # Add custom labels
@@ -522,19 +540,17 @@ dev.off()
 library(dplyr)
 
 ##set wd and load data
-# setwd("C:/Users/krapf/OneDrive/Desktop/PheromoneAssays/auswertung/Files_digitised")
-# mass_ <- readxl::read_xlsx("Auswertung_Mass_MM_PK.xlsx", sheet=1)
 setwd("C:/Users/krapf/OneDrive/Desktop/PheromoneAssays/auswertung/")
-mass_ <- readxl::read_xlsx("Dataset", sheet="Assay_NAT_GAS")
+mass_AllData <- readxl::read_xlsx("Dataset.xlsx", sheet="Assay_NAT_GAS")
 
 # Check how often decisions where made on the left and right side and no decision
-head(mass_)
-table(mass_$decision) #128+117+24
+head(mass_AllData)
+table(mass_AllData$decision) #128+117+24
 128+117+24
 #269 total number of tests
 
 #Now exclude all missing values
-mass_ <- mass_ %>%
+mass_ <- mass_AllData %>%
   filter(correct_all != "NA") %>%
   as_tibble()
 #Note, we have three levels: mass, 5G, mass_5G
@@ -848,40 +864,74 @@ prop.test(x = c(64, 50), n = c(80, 80), correct = T)
 
 
 ##--##--##--##--##
-### Plot Frequency of decision ####
+### Plot proportion of decision ####
 ##--##--##--##--##
 
-Mass_frequency <- ggplot(mass_, aes(x=correct_combined, fill=correct_combined))+ #y=decision
-  geom_bar(stat="count", col="black")+
-  facet_grid(~assay, labeller = as_labeller(c("5G"='GAS vs CTR -\n Following GAS',
-                                              "mass"='NAT vs CTR -\n Following NAT',
-                                              "mass_5G"='NAT vs GAS -\n Following GAS'))) +
-  ylim(0, 70) +
-  coord_cartesian(ylim=c(0,70)) +
-  scale_y_continuous(breaks=seq(0,70,10)) +
-  ylab("Frequency of decisions")+
-  xlab("Decision")  +  #
-  geom_text(
-    stat = "count",
-    aes(label = ..count..),
-    position = position_dodge(width = 0.9),
-    vjust = -0.5
+# 1. Compute counts and proportions per assay
+mass_prop <- mass_ %>%
+  count(assay, correct_combined, name = "n") %>%
+  mutate(
+    assay = factor(assay, levels = c("mass", "5G", "mass_5G"))  # changed order
+  ) %>%
+  group_by(assay) %>%
+  mutate(prop = n / sum(n))                        # proportion within each assay
+  
+
+# 2. Proportion plot with percent + count labels
+Mass_proportion <- ggplot(
+  mass_prop,
+  aes(x = correct_combined, y = prop, fill = correct_combined)
+) +
+  geom_col(col = "black") +
+  facet_grid(
+    ~ assay,
+    labeller = as_labeller(c(
+      "5G"     = "GAS vs CTR -\n Following GAS",
+      "mass"   = "NAT vs CTR -\n Following NAT",
+      "mass_5G" = "NAT vs GAS -\n Following GAS"
+    ))
   ) +
-  scale_x_discrete(breaks=c("n", "y"),
-                   labels = c("Not following", "Following")) +
-  scale_fill_manual(values=c("#f4a162","#42923f"),
-                    name ="Decision",
-                    breaks=c("n", "y"),
-                    labels = c("Not following", "Following")) +
+  scale_y_continuous(
+    labels = percent_format(),
+    limits = c(0, 1.1),                 # little space above bars for text
+    breaks = seq(0, 1, 0.1)
+  ) +
+  ylab("Proportion of decisions") +
+  xlab("Decision") +
+  geom_text(
+    aes(
+      label = paste0(
+        percent(prop, accuracy = 1),    # e.g. "9%"
+        " (", n, ")"                    # e.g. " (12)"
+      )
+    ),
+    vjust = -0.5,
+    size = 3.5
+  ) +
+  scale_x_discrete(
+    breaks = c("n", "y"),
+    labels = c("Not following", "Following")
+  ) +
+  scale_fill_manual(
+    values = c("#f4a162", "#42923f"),
+    name   = "Decision",
+    breaks = c("n", "y"),
+    labels = c("Not following", "Following")
+  ) +
   theme_bw() +
-  theme(plot.title = element_text(size=25),
-        axis.title.x = element_text(size=17),
-        axis.text.x  = element_blank(), #element_text(size=13, color="black"),
-        axis.title.y = element_text(size=17),
-        axis.text.y  = element_text(size=13, color="black"),
-        panel.border = element_rect(colour = "black", fill=NA, size=1),
-        panel.grid.minor.x = element_blank())
-Mass_frequency
+  theme(
+    plot.title        = element_text(size = 25),
+    #axis.title.x      = element_text(size = 17),
+    axis.text.x       = element_blank(),   # as in your original
+    axis.title.y      = element_text(size = 17),
+    axis.text.y       = element_text(size = 13, color = "black"),
+    panel.border      = element_rect(colour = "black", fill = NA, size = 1),
+    strip.text.x = element_blank(),
+    panel.grid.minor.x = element_blank()
+  )
+
+Mass_proportion
+
 
 
 ###---###---###---###---###---###---###
@@ -977,15 +1027,21 @@ p.adjust(c(0.003, 0.0214, 0.8602))
 ##--##--##--##--##
 library(ggpubr)
 
-Mass_DecisionTimes <- ggplot(mass_, aes(x=assay , y=time_decision3, fill=assay))+
+#Change the order of appearence
+mass_ordered <- mass_ %>% 
+  mutate(assay = factor(assay, levels = c("mass", "5G", "mass_5G")))  # <- new order
+
+
+Mass_DecisionTimes <- ggplot(mass_ordered, aes(x=assay , y=time_decision3, fill=assay))+
   geom_boxplot()+
+  geom_jitter(width=0.2, alpha=0.2) +
   ylab("Seconds until ants reached a decision")+  #rename
   xlab("")+
   scale_x_discrete(breaks=c("5G", "mass", "mass_5G"),
                    labels=c("GAS vs CON - \n Following GAS",
                             "NAT vs CON - \n Following NAT",
                             "NAT vs GAS - \n Following GAS")) +
-  scale_fill_manual(values=c("#c2df23","#2ab07f", "#38588c"), #values=c("orange","darkgreen", "blue"),
+  scale_fill_manual(values=c("#2ab07f","#c2df23", "#38588c"), #values=c("orange","darkgreen", "blue"),
                     name ="Assay",
                     labels=c("GAS vs CON - \n Following GAS",
                              "NAT vs CON - \n Following NAT",
@@ -1122,18 +1178,20 @@ wilcox.test(mass_5GAssaySec_Corr$time_decision3, mass_5GAssaySec_Wrong$time_deci
 ##--##--##--##--##
 ### Plot Decision times for following and not following Q2.3 ####
 ##--##--##--##--##
-Mass_SpeedAcc <- ggplot(mass_, aes(x=correct_combined , y=time_decision3, fill=correct_combined))+
+
+Mass_SpeedAcc <- ggplot(mass_ordered, aes(x=correct_combined , y=time_decision3, fill=correct_combined))+
   geom_boxplot()+
+  geom_jitter(width=0.2, alpha=0.2) +
   facet_grid(~assay, labeller = as_labeller(c("5G"='GAS vs CON -\n Following GAS',
                                               "mass"='NAT vs CON -\n Following NAT',
                                               "mass_5G"='NAT vs GAS -\n Following GAS'))) +
   ylab("Seconds until ants crossed decision line")+
   xlab("Decision")+
   scale_x_discrete(breaks=c("n", "y"),
-                   labels=c("Not following", "Following")) +
+                   labels=c("Not follow", "Follow")) +
   scale_fill_manual(values=c("#f4a162","#42923f"), #values=c("purple","#89ea37"),
                     name ="Assay",
-                    labels = c("Not following", "Following")) +
+                    labels = c("Not follow", "Follow")) +
   # geom_signif(
   #   comparisons = list(c("y", "n")),
   #   test = "wilcox.test",
@@ -1141,11 +1199,12 @@ Mass_SpeedAcc <- ggplot(mass_, aes(x=correct_combined , y=time_decision3, fill=c
   theme_bw() + 
   theme(plot.title = element_text(size=25),
         # legend.justification=c(0.1,0.4), legend.position=c(0.6901,0.6501),
-        axis.title.x = element_text(size=17),
+        #axis.title.x = element_text(size=17),
         axis.text.x  = element_blank(), #element_text(size=13, color="black"),
         axis.title.y = element_text(size=17),
         axis.text.y  = element_text(size=13, color="black"),
         panel.border = element_rect(colour = "black", fill=NA, size=1),
+        strip.text.x = element_blank(),
         panel.grid.minor.x = element_blank())
 Mass_SpeedAcc
 
@@ -1154,8 +1213,8 @@ Mass_SpeedAcc
 ## Figure 3 - Pheromone following: NAT vs CON, GAS  vs CON, GAS vs NAT ####
 ###---###---###---###---###---###---###
 ## Compound figure 2 Mass ####
-pdf("Fig3_Mass_20260112.pdf", width = 12, height = 5.84)  # half of 11.69 height
-ggarrange(Mass_frequency, 
+pdf("Fig3_Mass.pdf", width = 12, height = 5.84)  # half of 11.69 height
+ggarrange(Mass_proportion, 
           Mass_DecisionTimes,
           Mass_SpeedAcc, 
           label.x = 0,
@@ -1163,9 +1222,8 @@ ggarrange(Mass_frequency,
           nrow=1, ncol=3, legend="bottom", align = "h") #ncol=5, 
 dev.off()
 
+getwd()
 
-
-##--##--##--##--##--##--##--##--##--##--##--##--##--##--##--##--#
 # Q3  AGGRESSION ASSAYS  ####
 ##--##--##--##--##--##--##--##--##--##--##--##--##--##--##--##--#
 
@@ -1174,14 +1232,8 @@ dev.off()
 ###---###---###---###---###---###---###
 library(readxl); library(ggpubr); library(dplyr)
 
-
-# setwd("C:/Users/krapf/OneDrive/Desktop/PheromoneAssays/auswertung/Agg_Auswertung_Filme/")
-# #Tet = read.table("C:/Users/c7701110/Desktop/PheromoneAssays/auswertung/Project21_Aggression_Stand_3-10-21.xlsx", header = T)
-# #Tet <- read_excel("Anna_Nico_AggAuswertung_20230418.xlsx", sheet="Auswertung_changed")
-# Tet <- read_excel("Tet1_20250718_mod_EK_pk_20251210.xlsx", sheet="Sheet1")
-#Note: this file above "Tet1_20250718_mod_EK_pk_20251210.xlsx" is after Evelina Krol from UIBK has double-checked missing/uncertain videos and now, we can re-analyse the behaviours
 setwd("C:/Users/krapf/OneDrive/Desktop/PheromoneAssays/auswertung/")
-Tet <- readxl::read_xlsx("Dataset", sheet="Assay_Aggression")
+Tet <- readxl::read_xlsx("Dataset.xlsx", sheet="Assay_Aggression")
 
 
 #Already select only aggressive encounters for Q3.4-Q3.6
@@ -1314,6 +1366,7 @@ pairwise.wilcox.test(Tet$AI_calc, g=Tet$paper_red, metod="BH")
 ##--##--##--##--##--##--##--##
 AI_pheromones <- ggplot(Tet, aes(x= paper_red, y= AI_calc, fill= paper_red))+
   geom_boxplot()+
+  geom_jitter(width = 0.2, alpha=0.2) +
   #facet_grid(~loc)+
   ylab(label = "Behaviour index")+
   xlab(label = "Pheromones")+
@@ -1402,6 +1455,7 @@ pairwise.wilcox.test(Tet$AI_calc, g=Tet$loc)
 ##--##--##--##--##--##--##--##
 AI_pops <- ggplot(Tet, aes(x= loc, y= AI_calc, fill= loc))+
   geom_boxplot(alpha=0.8)+
+  geom_jitter(width = 0.2, alpha=0.2) +
   ylab(label = "Behaviour index")+
   xlab(label = "Pheromones")+
   scale_fill_manual(name="Populations",
@@ -1640,6 +1694,7 @@ pairwise.wilcox.test(Penser$AI_calc, g=Penser$paper_red, method="BH")
 
 AI_Pheromones_Pops <- ggplot(Tet1, aes(x= paper_red, y= AI_calc, fill= paper_red))+
   geom_boxplot(alpha=0.8)+
+  geom_jitter(width = 0.2, alpha=0.2) +
   facet_grid(~loc)+
   ylab(label = "Behaviour index")+
   xlab(label = "Pheromones")+
@@ -1681,14 +1736,8 @@ AI_Pheromones_Pops
 ###---###---###---###---###---###---###
 library(readxl); library(ggpubr); library(ggplot2); library(dplyr)
 
-## NEW selection based on Evelina and my analysis 20260109####
-# setwd("C:/Users/krapf/OneDrive/Desktop/PheromoneAssays/auswertung/Agg_Auswertung_Filme/")
-# #Tet = read.table("C:/Users/c7701110/Desktop/PheromoneAssays/auswertung/Project21_Aggression_Stand_3-10-21.xlsx", header = T)
-# #Tet <- read_excel("Anna_Nico_AggAuswertung_20230418.xlsx", sheet="Auswertung_changed")
-# Tet1_modEvel <- read_excel("Tet1_20250718_mod_EK_pk_20251210.xlsx")
-
 setwd("C:/Users/krapf/OneDrive/Desktop/PheromoneAssays/auswertung/")
-Tet1_modEvel <- readxl::read_xlsx("Dataset", sheet="Assay_Aggression")
+Tet1_modEvel <- readxl::read_xlsx("Dataset.xlsx", sheet="Assay_Aggression")
 
 #Below, we select only aggressive encounters ...
 Tet1_mod_agg <- subset(Tet1_modEvel, EncBeh=="agg")
@@ -1767,8 +1816,7 @@ RelProp_Agg_Phero
 ##--##--##--##--##--##--##--##
 library(dplyr)
 
-## NEW selection based on Evelina and my analysis 20260109####
-#First, we select only aggressive encoutners
+#First, we select only aggressive encounters
 Tet1_mod_agg <- subset(Tet1_modEvel, EncBeh=="agg")
 
 ##--##--##--##--##--##--##--##
@@ -1865,10 +1913,11 @@ RelProp_Agg_Phero_FirstWorker
 ### Q3.6 Is the time to start aggression influenced by the pheromones ####
 ##--##--##--##--##--##--##--##
 
-## NEW selection based on Evelina and my analysis 20260109####
-#First, we select only aggressive encoutners
-Tet1_modEvel <- read_excel("Tet1_20250718_mod_EK_pk_20251210.xlsx")
+#First, we select only aggressive encounters
+
+Tet1_modEvel <- read_excel("Dataset.xlsx", sheet = "Assay_Aggression")
 Tet1_mod_agg <- subset(Tet1_modEvel, EncBeh=="agg")
+
 length(Tet1_mod_agg$EncBeh) #312
 length(Tet1_mod_agg$BehFirstWorker) #
 
@@ -1942,7 +1991,7 @@ StartAgg_Phero
 ##--##--##--##--##--##--##--##
 # Plot all Aggression data ####
 library(ggpubr)
-pdf("Fig4_Compound_Agg_20260109.pdf", width = 8.27, height = 11.69) #
+pdf("Fig4_Compound_Agg.pdf", width = 8.27, height = 11.69) #
 ggarrange(AI_pheromones,
           AI_pops,
           AI_Pheromones_Pops,
@@ -1952,6 +2001,29 @@ ggarrange(AI_pheromones,
           labels = c("A)", "B)", "C)", "D)", "E)", "F)"),
           ncol = 2, nrow = 3, align="v", legend = NULL)
 dev.off()
+
+
+##--##--##--##--##--##--##--##
+## Within-colony behaviour ####
+##--##--##--##--##--##--##--##
+#Already select only aggressive encounters for Q3.4-Q3.6
+
+setwd("C:/Users/krapf/OneDrive/Desktop/PheromoneAssays/auswertung/")
+WithinColony_Beh <- readxl::read_xlsx("Dataset.xlsx", sheet="WithinColony_Behaviour")
+
+WithinColony_Beh$Pop
+
+ggplot(WithinColony_Beh, aes(x=Enc, y=binary_behaviour))+
+  geom_boxplot()+
+  labs(x = "Encounter", y = "Behaviour") +
+  theme_bw()+
+  theme(plot.title = element_text(size=22),
+        legend.position="none",
+        axis.title.x = element_text(size=15),
+        axis.text.x  = element_text(size=13, color="black"),
+        axis.title.y = element_text(size=15),
+        axis.text.y  = element_text(size=13, color="black"),
+        panel.grid.minor.x = element_blank())
 
 #END OF SCRIPT AND ANALYSIS
 
