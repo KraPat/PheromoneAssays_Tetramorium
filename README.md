@@ -1,10 +1,10 @@
 # PheromoneAssays_Tetramorium
 
-#This repository contains R code for the paper
-#"Below-ground ants follow pheromones more quickly under dark conditions, but pheromones do not affect decision accuracy nor aggression"
-# by Patrick Krapf*§1,2,3, Michael Mitschke§1,4,5, Anna Lenninger1, Nico Völlenklee1, Tomer J. Czaczkes6,7, Birgit C. Schlick-Steiner#1, Florian M. Steiner*#1
+## This repository contains R code for the paper
+## "Below-ground ants follow pheromones more quickly under dark conditions, but pheromones do not affect decision accuracy nor aggression"
+## by Patrick Krapf*§1,2,3, Michael Mitschke§1,4,5, Anna Lenninger1, Nico Völlenklee1, Tomer J. Czaczkes6,7, Birgit C. Schlick-Steiner#1, Florian M. Steiner*#1
 
-#Authors and affilitations
+## Authors and affilitations
 1 Molecular Ecology Group, Department of Ecology, Universität Innsbruck, Technikerstr. 25, Innsbruck 6020, Austria
 2 Organismal and Evolutionary Biology Research Programme, University of Helsinki, Helsinki, 00560, Finland
 3 Institute for Biodiversity and Ecosystem Dynamics, University of Amsterdam, Amsterdam, 1090 GE, Netherlands
